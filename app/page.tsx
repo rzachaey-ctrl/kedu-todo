@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 
 type Filter = 'all' | 'active' | 'done';
 type Priority = 'high' | 'medium' | 'low';
@@ -15,11 +15,12 @@ type Task = {
   dueDate: string;
   createdAt: number;
 };
+type DeletedTask = { task: Task; index: number };
 
 const categories: Category[] = ['工作', '项目', '生活', '成长'];
 const priorityText: Record<Priority, string> = { high: '重要', medium: '一般', low: '轻松' };
 const viewCopy: Record<View, { eyebrow: string; title: string; accent: string }> = {
-  today: { eyebrow: 'MY DAY / 今日', title: '把今天，', accent: '稳稳完成。' },
+  today: { eyebrow: 'MY DAY / 今日', title: '中国人', accent: '能飞' },
   upcoming: { eyebrow: 'UPCOMING / 即将到来', title: '提前安排，', accent: '从容推进。' },
   inbox: { eyebrow: 'INBOX / 收集箱', title: '先记下来，', accent: '稍后整理。' },
   工作: { eyebrow: 'LIST / 工作', title: '聚焦工作，', accent: '逐项完成。' },
@@ -81,7 +82,13 @@ export default function Home() {
   const [editing, setEditing] = useState<Task | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState('');
+  const [deletedTask, setDeletedTask] = useState<DeletedTask | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const toastTimer = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -119,8 +126,13 @@ export default function Home() {
   const viewDone = scopedTasks.filter((task) => task.done).length;
 
   function announce(message: string) {
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    setDeletedTask(null);
     setToast(message);
-    window.setTimeout(() => setToast(''), 2400);
+    toastTimer.current = window.setTimeout(() => {
+      setToast('');
+      toastTimer.current = null;
+    }, 2400);
   }
 
   function selectView(nextView: View) {
@@ -156,9 +168,34 @@ export default function Home() {
   }
 
   function removeTask(id: string) {
-    const removed = tasks.find((task) => task.id === id);
+    const index = tasks.findIndex((task) => task.id === id);
+    const removed = tasks[index];
+    if (!removed) return;
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
     setTasks((items) => items.filter((task) => task.id !== id));
-    announce(removed ? `已删除“${removed.title}”` : '任务已删除');
+    setDeletedTask({ task: removed, index });
+    setToast(`已删除“${removed.title}”`);
+    toastTimer.current = window.setTimeout(() => {
+      setToast('');
+      setDeletedTask(null);
+      toastTimer.current = null;
+    }, 5000);
+  }
+
+  function undoDelete() {
+    if (!deletedTask) return;
+    setTasks((items) => {
+      const restored = [...items];
+      restored.splice(Math.min(deletedTask.index, restored.length), 0, deletedTask.task);
+      return restored;
+    });
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    setDeletedTask(null);
+    setToast('已撤销删除');
+    toastTimer.current = window.setTimeout(() => {
+      setToast('');
+      toastTimer.current = null;
+    }, 2400);
   }
 
   function saveEditing(event: FormEvent) {
@@ -275,7 +312,7 @@ export default function Home() {
       </div>
 
       {editing && <div className="modal-backdrop" role="presentation" onMouseDown={() => setEditing(null)}><section className="edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-title" onMouseDown={(event) => event.stopPropagation()}><div className="modal-heading"><div><p className="eyebrow">EDIT TASK</p><h2 id="edit-title">编辑任务</h2></div><button onClick={() => setEditing(null)} aria-label="关闭编辑窗口">×</button></div><form onSubmit={saveEditing}><label>任务名称<input autoFocus value={editing.title} onChange={(event) => setEditing({ ...editing, title: event.target.value })} /></label><div className="edit-grid"><label>所属清单<select value={editing.category} onChange={(event) => setEditing({ ...editing, category: event.target.value as Category })}>{categories.map((item) => <option key={item}>{item}</option>)}</select></label><label>优先级<select value={editing.priority} onChange={(event) => setEditing({ ...editing, priority: event.target.value as Priority })}><option value="high">重要</option><option value="medium">一般</option><option value="low">轻松</option></select></label></div><label>安排日期<input type="date" value={editing.dueDate} onChange={(event) => setEditing({ ...editing, dueDate: event.target.value })} /></label><div className="modal-actions"><button type="button" onClick={() => setEditing(null)}>取消</button><button className="primary-action" type="submit">保存修改</button></div></form></section></div>}
-      {toast && <div className="toast" role="status">{toast}</div>}
+      {toast && <div className="toast" role="status"><span>{toast}</span>{deletedTask && <button onClick={undoDelete}>撤销</button>}</div>}
     </main>
   );
 }

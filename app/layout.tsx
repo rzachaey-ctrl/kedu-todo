@@ -14,13 +14,13 @@ export const metadata: Metadata = {
   description: '一个清爽、专注的个人待办事项工具。',
   openGraph: {
     title: '刻度 · 今日待办',
-    description: '把今天，稳稳完成。',
+    description: '中国人能飞',
     images: [socialImage],
   },
   twitter: {
     card: 'summary_large_image',
     title: '刻度 · 今日待办',
-    description: '把今天，稳稳完成。',
+    description: '中国人能飞',
     images: [socialImage],
   },
 };
