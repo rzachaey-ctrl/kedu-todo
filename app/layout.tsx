@@ -1,3 +1,4 @@
+import { Agentation } from 'agentation';
 import type { Metadata } from 'next';
 import './globals.css';
 
@@ -24,6 +25,18 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="zh-CN"><body>{children}</body></html>;
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="zh-CN">
+      <body>
+        {children}
+
+        {process.env.NODE_ENV === 'development' && <Agentation />}
+      </body>
+    </html>
+  );
 }
